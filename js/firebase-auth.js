@@ -8,13 +8,13 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAMVIEC0lork20d7Z_Ma_6KxtgbgKKGE-k",
-  authDomain: "hackaton-eba4d.firebaseapp.com",
-  projectId: "hackaton-eba4d",
-  storageBucket: "hackaton-eba4d.firebasestorage.app",
-  messagingSenderId: "837132896288",
-  appId: "1:837132896288:web:042a6704f4f11b7c6dd445",
-  measurementId: "G-5NP1ESVDH2"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 const app = initializeApp(firebaseConfig);

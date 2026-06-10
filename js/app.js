@@ -20,6 +20,8 @@ const STATE = {
   bestScores: { snake: 0, tetris: 0, breakout: 0, pong: 0, flappy: 0, asteroids: 0 },
   currentGame: null,
   currentDifficulty: 'normal',
+  coins: Number(localStorage.getItem('arcade-coins') || 0),
+  upgrades: JSON.parse(localStorage.getItem('arcade-upgrades') || '{}'),
   gameRunning: false,
   gameLoop: null,
   rafId: null,
@@ -135,6 +137,100 @@ const DIFFICULTIES = {
 
 function getDifficulty() {
   return DIFFICULTIES[STATE.currentDifficulty] || DIFFICULTIES.normal;
+}
+
+const SHOP_CATALOG = {
+  snake: [
+    { id: 'slow_enemy', name: 'Slow Enemy', price: 35, desc: 'Enemy chases 30% slower.' },
+    { id: 'double_points', name: 'Double Points', price: 55, desc: 'Food gives double score.' },
+    { id: 'shield', name: 'Shield', price: 75, desc: 'Survive one crash.' },
+  ],
+  breakout: [
+    { id: 'wide_paddle', name: 'Wide Paddle', price: 35, desc: 'Paddle is wider.' },
+    { id: 'slow_ball', name: 'Slow Ball', price: 45, desc: 'Ball moves slower.' },
+    { id: 'extra_life', name: 'Extra Life', price: 65, desc: 'Start with one extra life.' },
+  ],
+  pong: [
+    { id: 'fast_paddle', name: 'Fast Paddle', price: 35, desc: 'Your paddle moves faster.' },
+    { id: 'ai_slowdown', name: 'AI Slowdown', price: 50, desc: 'Enemy AI reacts slower.' },
+    { id: 'power_shot', name: 'Power Shot', price: 60, desc: 'Ball gets stronger after your hit.' },
+  ],
+  flappy: [
+    { id: 'slow_pipes', name: 'Slow Pipes', price: 40, desc: 'Pipes move slower.' },
+    { id: 'extra_jump', name: 'Extra Jump', price: 50, desc: 'Jump feels stronger.' },
+    { id: 'shield', name: 'Shield', price: 70, desc: 'Survive one hit.' },
+  ],
+  asteroids: [
+    { id: 'rapid_fire', name: 'Rapid Fire', price: 45, desc: 'Shoot faster.' },
+    { id: 'shield', name: 'Shield', price: 70, desc: 'Survive one crash.' },
+    { id: 'double_score', name: 'Double Score', price: 80, desc: 'Asteroids give double points.' },
+  ],
+  tetris: [
+    { id: 'slow_fall', name: 'Slow Fall', price: 45, desc: 'Pieces fall slower.' },
+    { id: 'bonus_lines', name: 'Bonus Lines', price: 70, desc: 'Line clears give more score.' },
+    { id: 'soft_start', name: 'Soft Start', price: 60, desc: 'Level 1 starts calmer.' },
+  ],
+};
+
+function saveShop() {
+  localStorage.setItem('arcade-coins', String(STATE.coins));
+  localStorage.setItem('arcade-upgrades', JSON.stringify(STATE.upgrades));
+}
+
+function hasUpgrade(gameId, upgradeId) {
+  return Boolean(STATE.upgrades?.[gameId]?.[upgradeId]);
+}
+
+function buyUpgrade(gameId, upgradeId) {
+  const item = SHOP_CATALOG[gameId]?.find(i => i.id === upgradeId);
+  if (!item || hasUpgrade(gameId, upgradeId) || STATE.coins < item.price) return;
+  STATE.coins -= item.price;
+  STATE.upgrades[gameId] ||= {};
+  STATE.upgrades[gameId][upgradeId] = true;
+  saveShop();
+  renderShop(gameId);
+}
+
+function awardCoins(score) {
+  const earned = Math.max(3, Math.floor(score / 20) + 3);
+  STATE.coins += earned;
+  saveShop();
+  return earned;
+}
+
+function renderShop(gameId = STATE.currentGame) {
+  const coinEl = document.getElementById('coin-count');
+  const shopItems = document.getElementById('shop-items');
+  if (!coinEl || !shopItems || !gameId) return;
+
+  coinEl.textContent = STATE.coins;
+  const items = SHOP_CATALOG[gameId] || [];
+  shopItems.innerHTML = items.map(item => {
+    const owned = hasUpgrade(gameId, item.id);
+    const locked = STATE.coins < item.price && !owned;
+    return `
+      <div class="shop-item ${owned ? 'owned' : ''}">
+        <div>
+          <strong>${item.name}</strong>
+          <span>${item.desc}</span>
+        </div>
+        <button type="button" data-upgrade="${item.id}" ${owned || locked ? 'disabled' : ''}>
+          ${owned ? 'Owned' : item.price + ' coins'}
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+function setupShop() {
+  const shopItems = document.getElementById('shop-items');
+  if (!shopItems) return;
+  shopItems.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-upgrade]');
+    if (!btn) return;
+    buyUpgrade(STATE.currentGame, btn.dataset.upgrade);
+  });
+  renderShop();
 }
 
 function buildDifficultyPicker() {
@@ -415,6 +511,7 @@ function openGame(id) {
 
   // Reset HUD
   setHUD(0, 0, 1);
+  renderShop(id);
 
   // Setup start screen
   buildDifficultyPicker();
@@ -517,8 +614,10 @@ function onGameOver(score, level = 1) {
     STATE.bestScores[STATE.currentGame] = score;
     updateScoreboard();
   }
+  const earned = awardCoins(score);
   setHUD(score, STATE.bestScores[STATE.currentGame], level);
-  showStartScreen('GAME OVER', `Score: ${score} · Level: ${level}`);
+  showStartScreen('GAME OVER', `Score: ${score} · Level: ${level} · +${earned} coins`);
+  renderShop();
   updateBestStat();
 }
 
@@ -559,6 +658,9 @@ function startSnake() {
   const canvas = document.getElementById('game-canvas');
   const ctx = canvas.getContext('2d', { alpha: false });
   const diff = getDifficulty();
+  const slowEnemy = hasUpgrade('snake', 'slow_enemy');
+  const doublePoints = hasUpgrade('snake', 'double_points');
+  let shield = hasUpgrade('snake', 'shield');
   const SZ = 20;
   const COLS = Math.floor(canvas.width / SZ);
   const ROWS = Math.floor(canvas.height / SZ);
@@ -658,11 +760,29 @@ function startSnake() {
     const hitWall = head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS;
     const hitSelf = snake.slice(1).some(s => s.x === head.x && s.y === head.y);
     const hitEnemy = head.x === enemy.x && head.y === enemy.y;
-    if (hitWall || hitSelf || hitEnemy) { onGameOver(score, level); return false; }
+    if (hitWall || hitSelf || hitEnemy) {
+      if (shield) {
+        shield = false;
+        STATE.upgrades.snake.shield = false;
+        saveShop();
+        snake = [
+          {x:Math.floor(COLS/2), y:Math.floor(ROWS/2)},
+          {x:Math.floor(COLS/2)-1, y:Math.floor(ROWS/2)},
+          {x:Math.floor(COLS/2)-2, y:Math.floor(ROWS/2)}
+        ];
+        enemy = { x: Math.floor(COLS * 0.15), y: Math.floor(ROWS * 0.15) };
+        dir = {x:1,y:0};
+        nextDir = {x:1,y:0};
+        renderShop('snake');
+        return true;
+      }
+      onGameOver(score, level);
+      return false;
+    }
 
     snake.unshift(head);
     if (head.x === food.x && head.y === food.y) {
-      score += Math.round(10 * level * diff.score);
+      score += Math.round(10 * level * diff.score * (doublePoints ? 2 : 1));
       food = spawnFood();
       if (score > 0 && score % Math.round(80 * diff.score) === 0) {
         level++;
@@ -686,7 +806,7 @@ function startSnake() {
     acc += dt;
     enemyAcc += dt;
 
-    const enemyStep = Math.max(70, stepMs / diff.enemy);
+    const enemyStep = Math.max(70, stepMs / (diff.enemy * (slowEnemy ? 0.7 : 1)));
     while (enemyAcc >= enemyStep) {
       enemyAcc -= enemyStep;
       moveEnemy();
@@ -881,7 +1001,8 @@ function startBreakout() {
   const canvas = document.getElementById('game-canvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
-  const PW = 75, PH = 10, BALL_R = 7;
+  const basePW = hasUpgrade('breakout', 'wide_paddle') ? 110 : 75;
+  const PW = basePW, PH = 10, BALL_R = 7;
   const ROWS = 8, COLS = 10;
   const BPAD = 4, BH = 14;
   const BW = Math.floor((W - BPAD * (COLS + 1)) / COLS);
@@ -891,9 +1012,11 @@ function startBreakout() {
   let px = W/2 - PW/2, py = H - 30;
   let bx = W/2, by = H/2;
   const diff = getDifficulty();
-  let vx = 3.5 * diff.speed, vy = -4 * diff.speed;
-  let score = 0, level = 1, lives = diff.lives;
+  const ballUpgrade = hasUpgrade('breakout', 'slow_ball') ? 0.82 : 1;
+  let vx = 3.5 * diff.speed * ballUpgrade, vy = -4 * diff.speed * ballUpgrade;
+  let score = 0, level = 1, lives = diff.lives + (hasUpgrade('breakout', 'extra_life') ? 1 : 0);
   let bricks = [];
+  let blocker = { x: W / 2 - 60, y: H * 0.58, w: 120, h: 10, speed: 2.2 * diff.speed, dir: 1 };
 
   function makeBricks() {
     bricks = [];
@@ -957,6 +1080,15 @@ function startBreakout() {
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.fillRect(px+4, py+2, PW-8, 2);
 
+    // moving blocker
+    ctx.shadowColor = '#00F5FF';
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = '#00F5FF';
+    ctx.beginPath();
+    ctx.roundRect(blocker.x, blocker.y, blocker.w, blocker.h, 5);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
     // ball
     ctx.shadowColor = '#FF8C00'; ctx.shadowBlur = 14;
     ctx.fillStyle = '#FFFFFF';
@@ -988,6 +1120,20 @@ function startBreakout() {
     if (bx + BALL_R > W) { bx = W - BALL_R; vx = -Math.abs(vx); }
     if (by - BALL_R < 0) { by = BALL_R; vy = Math.abs(vy); }
 
+    blocker.x += blocker.speed * blocker.dir * dt;
+    if (blocker.x <= 0 || blocker.x + blocker.w >= W) {
+      blocker.x = Math.max(0, Math.min(W - blocker.w, blocker.x));
+      blocker.dir *= -1;
+    }
+
+    if (bx + BALL_R > blocker.x && bx - BALL_R < blocker.x + blocker.w && by + BALL_R > blocker.y && by - BALL_R < blocker.y + blocker.h) {
+      const fromTop = Math.abs((by + BALL_R) - blocker.y);
+      const fromBottom = Math.abs((by - BALL_R) - (blocker.y + blocker.h));
+      if (fromTop < fromBottom) { by = blocker.y - BALL_R; vy = -Math.abs(vy); }
+      else { by = blocker.y + blocker.h + BALL_R; vy = Math.abs(vy); }
+      vx += blocker.dir * 0.25;
+    }
+
     // paddle collision
     if (by + BALL_R > py && by - BALL_R < py + PH && bx > px - BALL_R && bx < px + PW + BALL_R) {
       vy = -Math.abs(vy);
@@ -1018,7 +1164,7 @@ function startBreakout() {
     if (by + BALL_R > H) {
       lives--;
       if (lives <= 0) { onGameOver(score, level); return; }
-      bx = W/2; by = H/2; vx = 3.5 * diff.speed; vy = -4 * diff.speed;
+      bx = W/2; by = H/2; vx = 3.5 * diff.speed * ballUpgrade; vy = -4 * diff.speed * ballUpgrade;
     }
 
     // all cleared
@@ -1647,5 +1793,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupThemePanel();
   setupScoreboard();
   setupModal();
+  setupShop();
   startHeroCanvas();
 });
