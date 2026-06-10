@@ -375,11 +375,11 @@ function openGame(id) {
 
   // Configure canvas size
   if (id === 'tetris') {
-    canvas.width = 300; canvas.height = 420;
+    canvas.width = 420; canvas.height = 560;
   } else if (id === 'asteroids') {
-    canvas.width = 420; canvas.height = 420;
+    canvas.width = 640; canvas.height = 640;
   } else {
-    canvas.width = 380; canvas.height = 420;
+    canvas.width = 600; canvas.height = 640;
   }
 
   // Draw idle frame
