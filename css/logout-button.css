@@ -1,0 +1,63 @@
+/* Navigation auth buttons */
+.nav-auth {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.nav-btn {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s var(--ease-out-expo);
+  display: inline-block;
+}
+
+.nav-btn:hover {
+  border-color: var(--border-hover);
+  color: var(--text-accent);
+}
+
+.nav-btn-login {
+  border-color: rgba(0, 255, 136, 0.3);
+}
+
+.nav-btn-login:hover {
+  border-color: #00ff88;
+  color: #00ff88;
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.4);
+}
+
+.nav-btn-register {
+  border-color: rgba(0, 245, 255, 0.3);
+}
+
+.nav-btn-register:hover {
+  border-color: #00f5ff;
+  color: #00f5ff;
+  box-shadow: 0 0 12px rgba(0, 245, 255, 0.4);
+}
+
+.nav-btn-logout {
+  border-color: rgba(255, 0, 110, 0.4);
+  color: #ff006e;
+}
+
+.nav-btn-logout:hover {
+  border-color: #ff006e;
+  color: #ffffff;
+  background: rgba(255, 0, 110, 0.15);
+  box-shadow: 0 0 16px rgba(255, 0, 110, 0.5);
+  transform: scale(1.05);
+}
+
+.nav-btn-logout:active {
+  transform: scale(0.98);
+}
