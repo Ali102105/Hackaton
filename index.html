@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="nl" data-theme="neon">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Neon Arcade — 6 classic browser games with a stunning 2026 UI. Snake, Tetris, Breakout, Pong, Flappy, Asteroids." />
+  <title>NEON ARCADE — Play Classic Games</title>
+
+  <!-- Favicon inline SVG -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='28'>🕹️</text></svg>" />
+
+  <!-- External CSS -->
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+  <!-- Subtle noise overlay for texture -->
+  <div class="noise-overlay" aria-hidden="true"></div>
+
+  <!-- ============================================================
+       NAVBAR
+       ============================================================ -->
+  <nav id="navbar" role="navigation" aria-label="Main navigation">
+    <div class="nav-logo" aria-label="Neon Arcade">NEON ARCADE</div>
+
+    <ul class="nav-links">
+      <li><a href="#hero">Home</a></li>
+      <li><a href="#games-section">Games</a></li>
+      <li><a href="#scoreboard-section">Scores</a></li>
+    </ul>
+
+    <div class="nav-right">
+      <button id="theme-toggle-btn" aria-label="Open theme settings" title="Customize theme">
+        🎨
+      </button>
+    </div>
+
+    <!-- THEME PANEL -->
+    <div id="theme-panel" role="dialog" aria-label="Theme settings" aria-hidden="true">
+      <div class="panel-title">Theme</div>
+      <div class="theme-swatches" role="group" aria-label="Select theme"></div>
+
+      <div class="panel-divider"></div>
+
+      <div class="panel-title">Accent Color</div>
+      <div class="accent-grid" role="group" aria-label="Select accent color"></div>
+      <button id="reset-accent" style="font-size:11px;color:var(--text-muted);background:none;border:none;cursor:pointer;margin-top:4px;font-family:var(--font-display);letter-spacing:.08em;">↺ Reset accent</button>
+
+      <div class="panel-divider"></div>
+
+      <div class="panel-title">Options</div>
+
+      <div class="toggle-row">
+        <span class="toggle-label">Scanlines</span>
+        <button class="toggle on" id="toggle-scanlines" aria-pressed="true" aria-label="Toggle scanlines"></button>
+      </div>
+
+      <div class="setting-row">
+        <span class="setting-label">Anim Speed</span>
+        <input type="range" id="anim-speed" min="0.5" max="2" step="0.25" value="1" style="flex:1" aria-label="Animation speed" />
+        <span class="setting-val" id="speed-val">1x</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============================================================
+       HERO
+       ============================================================ -->
+  <header id="hero" aria-label="Hero section">
+    <canvas id="hero-canvas" aria-hidden="true"></canvas>
+    <div class="hero-scanline" aria-hidden="true"></div>
+    <div class="hero-gradient" aria-hidden="true"></div>
+
+    <div style="position:relative; z-index:2;">
+      <p class="hero-eyebrow">Browser · No install · 2026</p>
+      <h1 class="hero-title">NEON ARCADE</h1>
+      <p class="hero-sub">Six iconic games, re-built for the modern web. Zero installs. Pure reflexes.</p>
+
+      <div class="hero-stats" role="list">
+        <div class="stat-item" role="listitem">
+          <div class="stat-num">6</div>
+          <div class="stat-label">Games</div>
+        </div>
+        <div class="stat-item" role="listitem">
+          <div class="stat-num" id="total-plays">0</div>
+          <div class="stat-label">Plays</div>
+        </div>
+        <div class="stat-item" role="listitem">
+          <div class="stat-num" id="best-score-stat">—</div>
+          <div class="stat-label">Best Score</div>
+        </div>
+        <div class="stat-item" role="listitem">
+          <div class="stat-num">60fps</div>
+          <div class="stat-label">Smooth</div>
+        </div>
+      </div>
+
+      <div class="scroll-cue" aria-hidden="true">
+        <div class="scroll-arrow"></div>
+        <span>scroll</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       FILTER NAV
+       ============================================================ -->
+  <nav id="filter-nav" aria-label="Filter games">
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="arcade">Arcade</button>
+    <button class="filter-btn" data-filter="puzzle">Puzzle</button>
+    <button class="filter-btn" data-filter="shooter">Shooter</button>
+    <span class="filter-count" id="filter-count" aria-live="polite">6 games</span>
+  </nav>
+
+  <!-- ============================================================
+       GAME GRID
+       ============================================================ -->
+  <main id="games-section" aria-label="Game library">
+    <div class="section-header">
+      <span class="section-title">Games</span>
+      <div class="section-line"></div>
+    </div>
+    <div id="game-grid" role="list" aria-label="Available games"></div>
+  </main>
+
+  <!-- ============================================================
+       SCOREBOARD
+       ============================================================ -->
+  <section id="scoreboard-section" aria-label="High scores">
+    <div class="section-header">
+      <span class="section-title">High Scores</span>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="scores-grid">
+      <div class="score-card">
+        <div class="score-icon" style="color:#00FF88">🐍</div>
+        <div>
+          <div class="score-name">Snake</div>
+          <div class="score-num" id="best-snake" style="color:#00FF88">0</div>
+        </div>
+      </div>
+      <div class="score-card">
+        <div class="score-icon" style="color:#A855F7">🟪</div>
+        <div>
+          <div class="score-name">Tetris</div>
+          <div class="score-num" id="best-tetris" style="color:#A855F7">0</div>
+        </div>
+      </div>
+      <div class="score-card">
+        <div class="score-icon" style="color:#FF8C00">🧱</div>
+        <div>
+          <div class="score-name">Breakout</div>
+          <div class="score-num" id="best-breakout" style="color:#FF8C00">0</div>
+        </div>
+      </div>
+      <div class="score-card">
+        <div class="score-icon" style="color:#00F5FF">🏓</div>
+        <div>
+          <div class="score-name">Pong</div>
+          <div class="score-num" id="best-pong" style="color:#00F5FF">0</div>
+        </div>
+      </div>
+      <div class="score-card">
+        <div class="score-icon" style="color:#FFD000">🐦</div>
+        <div>
+          <div class="score-name">Flappy</div>
+          <div class="score-num" id="best-flappy" style="color:#FFD000">0</div>
+        </div>
+      </div>
+      <div class="score-card">
+        <div class="score-icon" style="color:#FF006E">🚀</div>
+        <div>
+          <div class="score-name">Asteroids</div>
+          <div class="score-num" id="best-asteroids" style="color:#FF006E">0</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       FOOTER
+       ============================================================ -->
+  <footer>
+    <span>NEON ARCADE</span> · Built with pure HTML, CSS & JS · No frameworks · 2026
+  </footer>
+
+  <!-- ============================================================
+       GAME MODAL
+       ============================================================ -->
+  <div id="modal-overlay" role="dialog" aria-modal="true" aria-label="Game" aria-hidden="true">
+    <div id="modal-inner">
+
+      <div id="modal-topbar">
+        <h2 id="modal-game-title"></h2>
+        <button id="modal-close" aria-label="Close game">✕ Close</button>
+      </div>
+
+      <div id="canvas-wrap">
+        <canvas id="game-canvas" width="380" height="420" aria-label="Game canvas"></canvas>
+
+        <div id="start-screen" role="button" tabindex="0" aria-label="Start game">
+          <h2 id="start-title" style="color:var(--text-accent)"></h2>
+          <p id="start-sub"></p>
+          <p id="start-press">▶ CLICK OR PRESS ANY KEY</p>
+        </div>
+      </div>
+
+      <div id="modal-hud" aria-live="polite">
+        <div class="hud-item">
+          <div class="hud-label">Score</div>
+          <div class="hud-value" id="hud-score">0</div>
+        </div>
+        <div class="hud-item">
+          <div class="hud-label">Best</div>
+          <div class="hud-value" id="hud-best">0</div>
+        </div>
+        <div class="hud-item">
+          <div class="hud-label">Level</div>
+          <div class="hud-value" id="hud-level">1</div>
+        </div>
+      </div>
+
+      <p id="modal-controls"></p>
+
+    </div>
+  </div>
+
+  <!-- External JS (deferred for performance) -->
+  <script src="/js/app.js" defer></script>
+</body>
+</html>
