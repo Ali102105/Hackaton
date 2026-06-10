@@ -2478,3 +2478,103 @@ img {
     font-size: 12px;
   }
 }
+
+.leaderboard-first {
+  background:
+    linear-gradient(135deg, rgba(255, 208, 0, 0.22), rgba(255, 140, 0, 0.08)),
+    var(--bg-card-solid);
+  border-color: rgba(255, 208, 0, 0.75);
+  box-shadow:
+    0 0 24px rgba(255, 208, 0, 0.28),
+    inset 0 0 18px rgba(255, 208, 0, 0.08);
+}
+
+.leaderboard-first .leaderboard-rank,
+.leaderboard-first .leaderboard-score {
+  color: #ffd000;
+  text-shadow: 0 0 12px rgba(255, 208, 0, 0.7);
+}
+
+
+
+/* ============================================================
+   GAME OVER LEADERBOARD IN MODAL
+   ============================================================ */
+#game-over-leaderboard {
+  display: none;
+  width: min(90vw, 620px);
+  margin: 0 auto 16px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(8, 8, 20, 0.92);
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  box-shadow:
+    0 0 26px rgba(124, 58, 237, 0.16),
+    inset 0 0 18px rgba(124, 58, 237, 0.06);
+}
+
+#game-over-leaderboard.show {
+  display: block;
+}
+
+.game-over-lb-title {
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: var(--accent-2);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.game-over-lb-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 80px;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.game-over-lb-row:first-of-type {
+  border-top: 0;
+}
+
+.game-over-lb-row.first {
+  margin-top: 4px;
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(255, 208, 0, 0.24), rgba(255, 140, 0, 0.08)),
+    rgba(20, 16, 4, 0.55);
+  border: 1px solid rgba(255, 208, 0, 0.65);
+  color: #ffd000;
+  box-shadow:
+    0 0 22px rgba(255, 208, 0, 0.25),
+    inset 0 0 14px rgba(255, 208, 0, 0.08);
+  text-shadow: 0 0 10px rgba(255, 208, 0, 0.55);
+}
+
+.game-over-lb-row.me:not(.first) {
+  border-radius: 12px;
+  background: rgba(0, 245, 255, 0.08);
+  border: 1px solid rgba(0, 245, 255, 0.22);
+}
+
+.game-over-lb-email {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+  #game-over-leaderboard {
+    width: min(94vw, 520px);
+  }
+
+  .game-over-lb-row {
+    grid-template-columns: 55px 1fr 60px;
+    font-size: 11px;
+    padding: 9px 8px;
+  }
+}

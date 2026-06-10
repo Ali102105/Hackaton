@@ -709,6 +709,7 @@ function openGame(id) {
   // Reset HUD
   setHUD(0, 0, 1);
   renderShop(id);
+  hideGameOverLeaderboard();
 
   // Setup start screen
   buildDifficultyPicker();
@@ -835,10 +836,6 @@ function onGameOver(score, level = 1) {
 
   setHUD(score, STATE.bestScores[STATE.currentGame], level);
 
-  if (window.saveLeaderboardScore && STATE.currentGame) {
-    window.saveLeaderboardScore(STATE.currentGame, score);
-  }
-
   showStartScreen(
     "GAME OVER",
     `Score: ${score} · Level: ${level} · +${earned} coins`,
@@ -846,6 +843,34 @@ function onGameOver(score, level = 1) {
 
   renderShop();
   updateBestStat();
+
+  const gameId = STATE.currentGame;
+
+  const refreshLeaderboards = () => {
+    if (!gameId) return;
+
+    showGameOverLeaderboard(gameId);
+
+    if (typeof loadLeaderboard === "function") {
+      loadLeaderboard(gameId);
+
+      document.querySelectorAll(".leaderboard-tab").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.game === gameId);
+      });
+    }
+  };
+
+  if (window.saveLeaderboardScore && gameId) {
+    window
+      .saveLeaderboardScore(gameId, score)
+      .then(refreshLeaderboards)
+      .catch((error) => {
+        console.error("Leaderboard save failed:", error);
+        refreshLeaderboards();
+      });
+  } else {
+    refreshLeaderboards();
+  }
 }
 
 function updateBestStat() {
@@ -2729,7 +2754,7 @@ const LEADERBOARD_GAMES = [
   "pong",
   "flappy",
   "asteroids",
-  "fruit"
+  "fruit",
 ];
 
 function buildLeaderboardTabs() {
@@ -2783,15 +2808,64 @@ async function loadLeaderboard(gameId) {
     return;
   }
 
-  list.innerHTML = scores.map((row, index) => `
-    <div class="leaderboard-row">
-      <span class="leaderboard-rank">#${index + 1}</span>
-      <span class="leaderboard-email">${row.email}</span>
-      <span class="leaderboard-score">${row.score}</span>
-    </div>
-  `).join("");
+  list.innerHTML = scores
+    .map(
+      (row, index) => `
+  <div class="leaderboard-row ${index === 0 ? "leaderboard-first" : ""}">
+    <span class="leaderboard-rank">${index === 0 ? "🏆 #1" : "#" + (index + 1)}</span>
+    <span class="leaderboard-email">${row.email}</span>
+    <span class="leaderboard-score">${row.score}</span>
+  </div>
+`,
+    )
+    .join("");
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   buildLeaderboardTabs();
 });
+
+async function showGameOverLeaderboard(gameId) {
+  const box = document.getElementById("game-over-leaderboard");
+  const list = document.getElementById("game-over-lb-list");
+
+  if (!box || !list || !gameId) return;
+
+  box.classList.add("show");
+  list.innerHTML = `<div class="leaderboard-empty">Loading leaderboard...</div>`;
+
+  if (!window.getLeaderboard) {
+    list.innerHTML = `<div class="leaderboard-empty">Leaderboard not loaded.</div>`;
+    return;
+  }
+
+  try {
+    const scores = await window.getLeaderboard(gameId);
+
+    if (!scores.length) {
+      list.innerHTML = `<div class="leaderboard-empty">No scores yet.</div>`;
+      return;
+    }
+
+    list.innerHTML = scores
+      .map((row, index) => {
+        const isCurrentUser = window.currentUser && row.uid === window.currentUser.uid;
+        return `
+          <div class="game-over-lb-row ${index === 0 ? "first" : ""} ${isCurrentUser ? "me" : ""}">
+            <span>${index === 0 ? "🏆 #1" : "#" + (index + 1)}</span>
+            <span class="game-over-lb-email">${row.email || "Unknown player"}</span>
+            <span>${row.score}</span>
+          </div>
+        `;
+      })
+      .join("");
+  } catch (error) {
+    console.error("Leaderboard load failed:", error);
+    list.innerHTML = `<div class="leaderboard-empty">Could not load leaderboard.</div>`;
+  }
+}
+
+function hideGameOverLeaderboard() {
+  const box = document.getElementById("game-over-leaderboard");
+  if (box) box.classList.remove("show");
+}
