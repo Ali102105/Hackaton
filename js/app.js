@@ -19,6 +19,7 @@ const STATE = {
   totalPlays: 0,
   bestScores: { snake: 0, tetris: 0, breakout: 0, pong: 0, flappy: 0, asteroids: 0 },
   currentGame: null,
+  currentDifficulty: 'normal',
   gameRunning: false,
   gameLoop: null,
   rafId: null,
@@ -125,6 +126,51 @@ const ACCENT_COLORS = [
   '#00F5FF','#7C3AED','#FF006E','#00FF88','#FF8C00',
   '#FFD000','#FF00E6','#39FF14',
 ];
+
+const DIFFICULTIES = {
+  easy:   { label: 'Easy',   speed: 0.82, enemy: 0.70, lives: 4, gap: 175, ai: 0.72, asteroids: 3, score: 0.8 },
+  normal: { label: 'Normal', speed: 1.00, enemy: 1.00, lives: 3, gap: 145, ai: 1.00, asteroids: 4, score: 1.0 },
+  hard:   { label: 'Hard',   speed: 1.24, enemy: 1.35, lives: 2, gap: 118, ai: 1.28, asteroids: 6, score: 1.35 },
+};
+
+function getDifficulty() {
+  return DIFFICULTIES[STATE.currentDifficulty] || DIFFICULTIES.normal;
+}
+
+function buildDifficultyPicker() {
+  const ss = document.getElementById('start-screen');
+  if (!ss || ss.querySelector('.difficulty-picker')) return;
+
+  const picker = document.createElement('div');
+  picker.className = 'difficulty-picker';
+  picker.setAttribute('aria-label', 'Choose difficulty');
+  picker.innerHTML = `
+    <button type="button" class="difficulty-btn" data-difficulty="easy">Easy</button>
+    <button type="button" class="difficulty-btn active" data-difficulty="normal">Normal</button>
+    <button type="button" class="difficulty-btn" data-difficulty="hard">Hard</button>
+  `;
+
+  picker.addEventListener('click', (e) => {
+    const btn = e.target.closest('.difficulty-btn');
+    if (!btn) return;
+    e.stopPropagation();
+    STATE.currentDifficulty = btn.dataset.difficulty;
+    picker.querySelectorAll('.difficulty-btn').forEach(b => b.classList.toggle('active', b === btn));
+    const game = GAMES.find(g => g.id === STATE.currentGame);
+    if (game) drawIdleCanvas(game);
+  });
+
+  const press = document.getElementById('start-press');
+  ss.insertBefore(picker, press);
+}
+
+function syncDifficultyPicker() {
+  const active = STATE.currentDifficulty || 'normal';
+  document.querySelectorAll('.difficulty-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.difficulty === active);
+  });
+}
+
 
 function applyTheme(id) {
   STATE.theme = id;
@@ -371,15 +417,15 @@ function openGame(id) {
   setHUD(0, 0, 1);
 
   // Setup start screen
+  buildDifficultyPicker();
+  syncDifficultyPicker();
   showStartScreen(game.title, 'Click or press any key to start');
 
   // Configure canvas size
   if (id === 'tetris') {
     canvas.width = 420; canvas.height = 560;
-  } else if (id === 'asteroids') {
-    canvas.width = 640; canvas.height = 640;
   } else {
-    canvas.width = 600; canvas.height = 640;
+    canvas.width = 640; canvas.height = 640;
   }
 
   // Draw idle frame
@@ -397,7 +443,8 @@ function openGame(id) {
     document.removeEventListener('keydown', startListener);
   };
   document.addEventListener('keydown', startListener);
-  document.getElementById('start-screen').onclick = () => {
+  document.getElementById('start-screen').onclick = (e) => {
+    if (e.target.closest('.difficulty-picker')) return;
     hideStartScreen();
     startGame();
     document.removeEventListener('keydown', startListener);
@@ -510,88 +557,152 @@ function startGame() {
 
 function startSnake() {
   const canvas = document.getElementById('game-canvas');
-  const ctx = canvas.getContext('2d');
-  const SZ = 20, COLS = Math.floor(canvas.width / SZ), ROWS = Math.floor(canvas.height / SZ);
-  let snake = [{x:Math.floor(COLS/2), y:Math.floor(ROWS/2)}, {x:Math.floor(COLS/2)-1, y:Math.floor(ROWS/2)}, {x:Math.floor(COLS/2)-2, y:Math.floor(ROWS/2)}];
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const diff = getDifficulty();
+  const SZ = 20;
+  const COLS = Math.floor(canvas.width / SZ);
+  const ROWS = Math.floor(canvas.height / SZ);
+
+  let snake = [
+    {x:Math.floor(COLS/2), y:Math.floor(ROWS/2)},
+    {x:Math.floor(COLS/2)-1, y:Math.floor(ROWS/2)},
+    {x:Math.floor(COLS/2)-2, y:Math.floor(ROWS/2)}
+  ];
   let dir = {x:1,y:0}, nextDir = {x:1,y:0};
-  let food = spawnFood(), score = 0, level = 1, speed = 140;
+  let enemy = { x: Math.floor(COLS * 0.15), y: Math.floor(ROWS * 0.15) };
+  let enemyTrail = [];
+  let score = 0, level = 1;
+  let stepMs = 132 / diff.speed;
+  let acc = 0, enemyAcc = 0, lastTime = 0;
+  let food = spawnFood();
+
+  function isBlocked(p) {
+    return snake.some(s => s.x === p.x && s.y === p.y) || (enemy.x === p.x && enemy.y === p.y);
+  }
 
   function spawnFood() {
     let p;
     do { p = {x: Math.floor(Math.random()*COLS), y: Math.floor(Math.random()*ROWS)}; }
-    while (snake.some(s => s.x === p.x && s.y === p.y));
+    while (isBlocked(p));
     return p;
   }
 
   function onKey(e) {
-    const map = {ArrowUp:{x:0,y:-1},ArrowDown:{x:0,y:1},ArrowLeft:{x:-1,y:0},ArrowRight:{x:1,y:0},w:{x:0,y:-1},s:{x:0,y:1},a:{x:-1,y:0},d:{x:1,y:0}};
+    const map = {ArrowUp:{x:0,y:-1},ArrowDown:{x:0,y:1},ArrowLeft:{x:-1,y:0},ArrowRight:{x:1,y:0},w:{x:0,y:-1},s:{x:0,y:1},a:{x:-1,y:0},d:{x:1,y:0},W:{x:0,y:-1},S:{x:0,y:1},A:{x:-1,y:0},D:{x:1,y:0}};
     const nd = map[e.key];
     if (nd && !(nd.x === -dir.x && nd.y === -dir.y)) nextDir = nd;
     if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
   }
-
   document.addEventListener('keydown', onKey);
   GAME_KEY_CLEANUP.push(() => document.removeEventListener('keydown', onKey));
+
+  function moveEnemy() {
+    const head = snake[0];
+    const choices = [
+      {x: enemy.x + 1, y: enemy.y}, {x: enemy.x - 1, y: enemy.y},
+      {x: enemy.x, y: enemy.y + 1}, {x: enemy.x, y: enemy.y - 1}
+    ].filter(p => p.x >= 0 && p.x < COLS && p.y >= 0 && p.y < ROWS);
+
+    choices.sort((a, b) => {
+      const da = Math.abs(a.x - head.x) + Math.abs(a.y - head.y);
+      const db = Math.abs(b.x - head.x) + Math.abs(b.y - head.y);
+      return da - db;
+    });
+
+    enemyTrail.unshift({...enemy});
+    enemyTrail = enemyTrail.slice(0, 6);
+    enemy = choices[0] || enemy;
+  }
+
+  function drawGrid() {
+    ctx.strokeStyle = '#0D2B0D';
+    ctx.lineWidth = 0.4;
+    for (let x = 0; x <= COLS; x++) { ctx.beginPath(); ctx.moveTo(x*SZ,0); ctx.lineTo(x*SZ,ROWS*SZ); ctx.stroke(); }
+    for (let y = 0; y <= ROWS; y++) { ctx.beginPath(); ctx.moveTo(0,y*SZ); ctx.lineTo(COLS*SZ,y*SZ); ctx.stroke(); }
+  }
+
+  function drawBlock(p, color, glow, alpha = 1, radius = 4) {
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = glow || color;
+    ctx.shadowBlur = glow ? 14 : 0;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(p.x*SZ+1, p.y*SZ+1, SZ-2, SZ-2, radius);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
 
   function draw() {
     ctx.fillStyle = '#071A0F';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawGrid();
 
-    // grid
-    ctx.strokeStyle = '#0D2B0D';
-    ctx.lineWidth = 0.4;
-    for (let x = 0; x <= COLS; x++) { ctx.beginPath(); ctx.moveTo(x*SZ,0); ctx.lineTo(x*SZ,canvas.height); ctx.stroke(); }
-    for (let y = 0; y <= ROWS; y++) { ctx.beginPath(); ctx.moveTo(0,y*SZ); ctx.lineTo(canvas.width,y*SZ); ctx.stroke(); }
-
-    // food glow
     ctx.shadowColor = '#FF4444'; ctx.shadowBlur = 12;
     ctx.fillStyle = '#FF4444';
     ctx.beginPath(); ctx.arc(food.x*SZ+SZ/2, food.y*SZ+SZ/2, SZ/2-2, 0, Math.PI*2); ctx.fill();
     ctx.shadowBlur = 0;
 
-    // snake
+    enemyTrail.forEach((p, i) => drawBlock(p, '#FF006E', '#FF006E', 0.18 - i*0.02, 5));
+    drawBlock(enemy, '#FF006E', '#FF006E', 1, 5);
+
     snake.forEach((seg, i) => {
       const t = 1 - i / snake.length;
-      if (i === 0) {
-        ctx.shadowColor = '#00FF88'; ctx.shadowBlur = 15;
-        ctx.fillStyle = '#00FF88';
-      } else {
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = `rgba(0,${Math.floor(140 + t*115)},${Math.floor(80*t)},${0.5 + t*0.5})`;
-      }
-      const r = i === 0 ? 4 : 3;
-      ctx.beginPath();
-      ctx.roundRect(seg.x*SZ+1, seg.y*SZ+1, SZ-2, SZ-2, r);
-      ctx.fill();
+      drawBlock(seg, i === 0 ? '#00FF88' : `rgba(0,${Math.floor(140 + t*115)},${Math.floor(80*t)},${0.55 + t*0.45})`, i === 0 ? '#00FF88' : null, 1, i === 0 ? 5 : 3);
     });
-    ctx.shadowBlur = 0;
   }
 
-  function tick() {
+  function step() {
     dir = nextDir;
     const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
-    if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS || snake.slice(1).some(s => s.x === head.x && s.y === head.y)) {
-      onGameOver(score, level); return;
-    }
+    const hitWall = head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS;
+    const hitSelf = snake.slice(1).some(s => s.x === head.x && s.y === head.y);
+    const hitEnemy = head.x === enemy.x && head.y === enemy.y;
+    if (hitWall || hitSelf || hitEnemy) { onGameOver(score, level); return false; }
+
     snake.unshift(head);
     if (head.x === food.x && head.y === food.y) {
-      score += 10 * level;
+      score += Math.round(10 * level * diff.score);
       food = spawnFood();
-      if (score % 100 === 0) {
+      if (score > 0 && score % Math.round(80 * diff.score) === 0) {
         level++;
-        speed = Math.max(55, speed - 12);
-        clearInterval(STATE.gameLoop);
-        STATE.gameLoop = setInterval(tick, speed);
+        stepMs = Math.max(46, stepMs - 8);
       }
       setHUD(score, STATE.bestScores.snake, level);
     } else {
       snake.pop();
     }
+
+    if (enemy.x === snake[0].x && enemy.y === snake[0].y) { onGameOver(score, level); return false; }
     draw();
+    return true;
   }
 
+  function loop(ts) {
+    if (!STATE.gameRunning) return;
+    if (!lastTime) lastTime = ts;
+    const dt = Math.min(ts - lastTime, 80);
+    lastTime = ts;
+    acc += dt;
+    enemyAcc += dt;
+
+    const enemyStep = Math.max(70, stepMs / diff.enemy);
+    while (enemyAcc >= enemyStep) {
+      enemyAcc -= enemyStep;
+      moveEnemy();
+    }
+    while (acc >= stepMs) {
+      acc -= stepMs;
+      if (!step()) return;
+    }
+
+    draw();
+    STATE.rafId = requestAnimationFrame(loop);
+  }
+
+  setHUD(score, STATE.bestScores.snake, level);
   draw();
-  STATE.gameLoop = setInterval(tick, speed);
+  STATE.rafId = requestAnimationFrame(loop);
 }
 
 /* ============================================================
@@ -616,7 +727,8 @@ function startTetris() {
 
   let board = Array.from({length: H}, () => Array(W).fill(0));
   let cur = null, curX = 0, curY = 0;
-  let score = 0, level = 1, lines = 0, speed = 500;
+  const diff = getDifficulty();
+  let score = 0, level = 1, lines = 0, speed = 500 / diff.speed;
   let lockTimer = null;
 
   function newPiece() {
@@ -778,8 +890,9 @@ function startBreakout() {
 
   let px = W/2 - PW/2, py = H - 30;
   let bx = W/2, by = H/2;
-  let vx = 3.5, vy = -4;
-  let score = 0, level = 1, lives = 3;
+  const diff = getDifficulty();
+  let vx = 3.5 * diff.speed, vy = -4 * diff.speed;
+  let score = 0, level = 1, lives = diff.lives;
   let bricks = [];
 
   function makeBricks() {
@@ -895,7 +1008,7 @@ function startBreakout() {
         const minD = Math.min(fromLeft, fromRight, fromTop, fromBottom);
         if (minD === fromTop || minD === fromBottom) vy = -vy;
         else vx = -vx;
-        score += b.hp <= 0 ? 10 * level : 5 * level;
+        score += Math.round((b.hp <= 0 ? 10 * level : 5 * level) * diff.score);
         setHUD(score, STATE.bestScores.breakout, level);
         break;
       }
@@ -905,7 +1018,7 @@ function startBreakout() {
     if (by + BALL_R > H) {
       lives--;
       if (lives <= 0) { onGameOver(score, level); return; }
-      bx = W/2; by = H/2; vx = 3.5; vy = -4;
+      bx = W/2; by = H/2; vx = 3.5 * diff.speed; vy = -4 * diff.speed;
     }
 
     // all cleared
@@ -938,10 +1051,11 @@ function startPong() {
   const canvas = document.getElementById('game-canvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
+  const diff = getDifficulty();
   const PW = 10, PH = 65, BALL_R = 7;
 
   let py = H/2 - PH/2, ay = H/2 - PH/2;
-  let bx = W/2, by = H/2, vx = 4.5, vy = 3;
+  let bx = W/2, by = H/2, vx = 4.5 * diff.speed, vy = 3 * diff.speed;
   let ps = 0, as = 0, rally = 0;
   const WIN = 7;
   const keys = {};
@@ -1009,7 +1123,7 @@ function startPong() {
     if (keys['s'] || keys['ArrowDown']) py = Math.min(H - PH, py + 6 * dt);
 
     // AI — speed scales with rally
-    const aiSpeed = (2.8 + rally * 0.1) * dt;
+    const aiSpeed = (2.8 * diff.ai + rally * 0.1) * dt;
     const aiCenter = ay + PH/2;
     if (aiCenter < by - 3) ay = Math.min(H - PH, ay + aiSpeed);
     else if (aiCenter > by + 3) ay = Math.max(0, ay - aiSpeed);
@@ -1041,12 +1155,12 @@ function startPong() {
     if (bx < 0) {
       as++; rally = 0; setHUD(ps, STATE.bestScores.pong, as);
       if (as >= WIN) { onGameOver(ps, as); return; }
-      bx = W/2; by = H/2; vx = 4.5; vy = 3;
+      bx = W/2; by = H/2; vx = 4.5 * diff.speed; vy = 3 * diff.speed;
     }
     if (bx > W) {
       ps++; rally = 0; setHUD(ps, STATE.bestScores.pong, as);
       if (ps >= WIN) { onGameOver(ps, as); return; }
-      bx = W/2; by = H/2; vx = -4.5; vy = 3;
+      bx = W/2; by = H/2; vx = -4.5 * diff.speed; vy = 3 * diff.speed;
     }
 
     draw();
@@ -1065,7 +1179,8 @@ function startFlappy() {
   const canvas = document.getElementById('game-canvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
-  const GRAVITY = 0.45, FLAP = -7, PIPE_W = 52, GAP = 145, PIPE_SPEED = 2.8;
+  const diff = getDifficulty();
+  const GRAVITY = 0.45 * diff.speed, FLAP = -7, PIPE_W = 52, GAP = diff.gap, PIPE_SPEED = 2.8 * diff.speed;
 
   let bird = { x: 80, y: H/2, vy: 0, r: 13 };
   let pipes = [];
@@ -1192,7 +1307,8 @@ function startAsteroids() {
 
   let ship = { x: W/2, y: H/2, angle: -Math.PI/2, vx: 0, vy: 0, r: 12 };
   let bullets = [], asteroids = [], particles = [];
-  let score = 0, level = 1, lives = 3;
+  const diff = getDifficulty();
+  let score = 0, level = 1, lives = diff.lives;
   let invincible = 0;
 
   function spawnAsteroids(n) {
@@ -1203,7 +1319,7 @@ function startAsteroids() {
         y = Math.random() * H;
       } while (Math.hypot(x - ship.x, y - ship.y) < 120);
       const angle = Math.random() * Math.PI * 2;
-      const speed = 1 + Math.random() * 1.5 + level * 0.2;
+      const speed = (1 + Math.random() * 1.5 + level * 0.2) * diff.speed;
       asteroids.push({ x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, r: 36 + Math.random()*14, angle: 0, rot: (Math.random()-0.5)*0.04, pts: [] });
     }
   }
@@ -1216,7 +1332,7 @@ function startAsteroids() {
     });
   }
 
-  spawnAsteroids(4);
+  spawnAsteroids(diff.asteroids);
   asteroids.forEach(buildPoints);
 
   const keys = {};
