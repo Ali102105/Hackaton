@@ -2047,3 +2047,351 @@ canvas,
 .nav-btn-logout:active {
   transform: scale(0.98);
 }
+
+/* =========================
+   FULL WEBSITE RESPONSIVE
+========================= */
+
+html {
+  overflow-x: hidden;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+canvas,
+img {
+  max-width: 100%;
+}
+
+/* NAVBAR */
+@media (max-width: 950px) {
+  #navbar {
+    height: auto;
+    min-height: 64px;
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .nav-logo {
+    font-size: 15px;
+  }
+
+  .nav-links {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    justify-content: center;
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .nav-right {
+    margin-left: auto;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .nav-btn {
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+
+  #user-email {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* HERO */
+@media (max-width: 768px) {
+  #hero {
+    padding: 155px 18px 60px;
+  }
+
+  .hero-title {
+    font-size: clamp(38px, 15vw, 68px);
+    letter-spacing: 0.04em;
+  }
+
+  .hero-eyebrow {
+    font-size: 9px;
+    letter-spacing: 0.22em;
+  }
+
+  .hero-sub {
+    font-size: 14px;
+    max-width: 94%;
+  }
+
+  .hero-stats {
+    gap: 22px;
+  }
+
+  .stat-num {
+    font-size: 22px;
+  }
+
+  .stat-label {
+    font-size: 8px;
+  }
+}
+
+/* FILTER BAR */
+@media (max-width: 768px) {
+  #filter-nav {
+    top: 0;
+    justify-content: center;
+    padding: 12px;
+  }
+
+  .filter-btn {
+    font-size: 9px;
+    padding: 8px 12px;
+  }
+
+  .filter-count {
+    width: 100%;
+    text-align: center;
+    margin-left: 0;
+  }
+}
+
+/* GAME GRID */
+@media (max-width: 900px) {
+  #games-section,
+  #scoreboard-section {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  #game-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .scores-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 580px) {
+  #game-grid,
+  .scores-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card-preview {
+    height: 140px;
+  }
+
+  .card-title {
+    font-size: 14px;
+  }
+
+  .card-desc {
+    font-size: 12px;
+  }
+
+  .play-btn {
+    padding: 8px 14px;
+    font-size: 9px;
+  }
+}
+
+/* MODAL */
+#modal-overlay {
+  overflow-y: auto;
+  justify-content: flex-start;
+  padding: 18px 12px 70px;
+}
+
+#modal-inner {
+  width: 100%;
+  max-width: 820px;
+}
+
+#modal-topbar {
+  width: min(94vw, 720px);
+  margin-inline: auto;
+}
+
+#canvas-wrap {
+  width: min(94vw, 640px);
+  aspect-ratio: 1 / 1;
+  max-height: calc(100vh - 290px);
+  margin-inline: auto;
+}
+
+#game-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#modal-hud {
+  width: min(94vw, 520px);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+#shop-panel {
+  width: min(94vw, 520px);
+}
+
+/* SMALL PHONE */
+@media (max-width: 520px) {
+  #modal-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #modal-game-title {
+    text-align: center;
+    font-size: 15px;
+  }
+
+  #modal-close {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  #canvas-wrap {
+    max-height: calc(100vh - 360px);
+  }
+
+  #modal-hud {
+    gap: 18px;
+    padding: 12px;
+  }
+
+  .hud-value {
+    font-size: 18px;
+  }
+
+  .difficulty-picker {
+    flex-wrap: wrap;
+  }
+
+  .difficulty-btn {
+    font-size: 10px;
+    padding: 8px 10px;
+  }
+
+  #start-title {
+    font-size: 24px;
+  }
+
+  #start-sub,
+  #start-press,
+  #modal-controls {
+    font-size: 9px;
+    text-align: center;
+    padding: 0 10px;
+  }
+}
+
+/* LOGIN / REGISTER */
+@media (max-width: 600px) {
+  .auth-page {
+    padding: 18px;
+    align-items: start;
+  }
+
+  .auth-logo {
+    position: static;
+    display: block;
+    text-align: center;
+    margin-bottom: 22px;
+  }
+
+  .auth-wrap {
+    max-width: 100%;
+  }
+
+  .auth-card {
+    padding: 24px 20px;
+    border-radius: 22px;
+  }
+
+  .auth-card h1 {
+    font-size: 26px;
+  }
+
+  .auth-sub {
+    font-size: 14px;
+  }
+
+  .auth-form input,
+  .auth-form button {
+    font-size: 14px;
+    padding: 13px 14px;
+  }
+
+  .back-circle {
+    top: 16px;
+    right: 16px;
+    width: 42px;
+    height: 42px;
+  }
+}
+
+/* VERY SMALL HEIGHT */
+@media (max-height: 720px) {
+  #modal-overlay {
+    padding-top: 12px;
+  }
+
+  #canvas-wrap {
+    max-height: calc(100vh - 330px);
+  }
+
+  #modal-controls {
+    display: none;
+  }
+
+  #shop-panel {
+    margin-top: 10px;
+  }
+}
+
+/* ============================================================
+   FRUIT SLASH + SHOP FIX
+   ============================================================ */
+
+#shop-panel {
+  width: min(94vw, 620px);
+}
+
+#shop-items {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.shop-empty {
+  grid-column: 1 / -1;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.shop-item {
+  min-height: 104px;
+}
+
+@media (max-width: 760px) {
+  #shop-items {
+    grid-template-columns: 1fr !important;
+  }
+}
