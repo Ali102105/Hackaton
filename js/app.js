@@ -2858,6 +2858,8 @@ function startOnlinePong() {
 
   let room = null;
   let localPaddle = H / 2 - PH / 2;
+  let localPaddleSynced = false;
+  let lastStatus = "";
   let lastWrite = 0;
   let lastBallWrite = 0;
   let lastTime = 0;
@@ -2881,6 +2883,18 @@ function startOnlinePong() {
   if (window.listenPongRoom) {
     STATE.pongRoomUnsubscribe = window.listenPongRoom(roomCode, (data) => {
       room = data;
+
+      if (!room) {
+        setRoomStatus("Room is gesloten of bestaat niet meer.", "error");
+        stopGame();
+        return;
+      }
+
+      const remoteY = Number(room?.paddles?.[player]);
+      if (!localPaddleSynced && Number.isFinite(remoteY)) {
+        localPaddle = Math.max(0, Math.min(H - PH, remoteY));
+        localPaddleSynced = true;
+      }
     });
     GAME_KEY_CLEANUP.push(() => {
       if (typeof STATE.pongRoomUnsubscribe === "function") STATE.pongRoomUnsubscribe();
@@ -2939,8 +2953,19 @@ function startOnlinePong() {
     ctx.fillText(player === "p2" ? "YOU" : "PLAYER 2", (3 * W) / 4, H - 10);
   }
 
+  function setOnlineStatusOnce(message, type = "info") {
+    if (lastStatus === message) return;
+    lastStatus = message;
+    setRoomStatus(message, type);
+  }
+
   async function hostUpdate(dt, ts) {
     if (!isHost || !room || !window.updatePongBall) return;
+    if (!room.players?.p2) {
+      setOnlineStatusOnce(`Room ${roomCode} is klaar. Wacht op player 2.`, "info");
+      return;
+    }
+    setOnlineStatusOnce(`Online Pong loopt als ${player.toUpperCase()} in room ${roomCode}.`, "success");
 
     const paddles = room.paddles || { p1: H / 2 - PH / 2, p2: H / 2 - PH / 2 };
     const score = room.score || { p1: 0, p2: 0 };
@@ -3000,6 +3025,21 @@ function startOnlinePong() {
     const dt = Math.min((ts - lastTime) / 16.67, 2);
     lastTime = ts;
 
+    if (!room) {
+      setOnlineStatusOnce("Verbinden met room...", "info");
+      draw();
+      STATE.rafId = requestAnimationFrame(tick);
+      return;
+    }
+
+    if (player === "p2" && !room.players?.p1) {
+      setOnlineStatusOnce("Player 1 is niet meer verbonden.", "error");
+    } else if (player === "p1" && !room.players?.p2) {
+      setOnlineStatusOnce(`Room ${roomCode} is klaar. Wacht op player 2.`, "info");
+    } else {
+      setOnlineStatusOnce(`Online Pong loopt als ${player.toUpperCase()} in room ${roomCode}.`, "success");
+    }
+
     if (keys["w"] || keys["ArrowUp"]) localPaddle = Math.max(0, localPaddle - 7 * dt);
     if (keys["s"] || keys["ArrowDown"]) localPaddle = Math.min(H - PH, localPaddle + 7 * dt);
 
@@ -3013,7 +3053,7 @@ function startOnlinePong() {
     STATE.rafId = requestAnimationFrame(tick);
   }
 
-  setRoomStatus(`Online Pong started as ${player.toUpperCase()} in room ${roomCode}.`, "success");
+  setRoomStatus(`Verbinden met online Pong als ${player.toUpperCase()} in room ${roomCode}...`, "info");
   setHUD(0, STATE.bestScores.pong, 1);
   draw();
   STATE.rafId = requestAnimationFrame(tick);

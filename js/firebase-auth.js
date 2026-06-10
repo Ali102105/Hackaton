@@ -87,10 +87,20 @@ window.getLeaderboard = async function (gameId) {
 
 window.createPongRoom = async function () {
   const user = window.currentUser;
-  if (!user) throw new Error("Login eerst.");
+  if (!user) throw new Error("Login eerst om online Pong te spelen.");
 
-  const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
-  const roomRef = ref(rtdb, "pongRooms/" + roomCode);
+  let roomCode = "";
+  let roomRef = null;
+
+  for (let i = 0; i < 8; i++) {
+    roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
+    roomRef = ref(rtdb, "pongRooms/" + roomCode);
+    const snap = await get(roomRef);
+    if (!snap.exists()) break;
+    roomRef = null;
+  }
+
+  if (!roomRef) throw new Error("Kon geen vrije room code maken. Probeer opnieuw.");
 
   await set(roomRef, {
     status: "waiting",
@@ -115,6 +125,7 @@ window.createPongRoom = async function () {
       p1: 0,
       p2: 0
     },
+    createdAt: Date.now(),
     updatedAt: Date.now()
   });
 
@@ -124,7 +135,7 @@ window.createPongRoom = async function () {
 
 window.joinPongRoom = async function (roomCode) {
   const user = window.currentUser;
-  if (!user) throw new Error("Login eerst.");
+  if (!user) throw new Error("Login eerst om online Pong te spelen.");
 
   roomCode = roomCode.trim().toUpperCase();
   const roomRef = ref(rtdb, "pongRooms/" + roomCode);
@@ -133,7 +144,12 @@ window.joinPongRoom = async function (roomCode) {
   if (!snap.exists()) throw new Error("Room bestaat niet.");
 
   const room = snap.val();
-  if (room.players?.p2) throw new Error("Room is al vol.");
+  if (room.players?.p2 && room.players.p2.uid !== user.uid) {
+    throw new Error("Room is al vol.");
+  }
+  if (room.players?.p1?.uid === user.uid) {
+    throw new Error("Je bent al player 1 in deze room.");
+  }
 
   await update(roomRef, {
     status: "playing",
@@ -178,53 +194,3 @@ window.deletePongRoom = async function (roomCode) {
   await remove(ref(rtdb, "pongRooms/" + roomCode.trim().toUpperCase()));
 };
 
-function setupPongRoomButtons() {
-  const createBtn = document.getElementById("create-pong-room");
-  const joinBtn = document.getElementById("join-pong-room");
-  const codeInput = document.getElementById("pong-room-code");
-  const status = document.getElementById("room-status");
-
-  if (!createBtn || !joinBtn || !codeInput || !status) return;
-
-  createBtn.addEventListener("click", async () => {
-    try {
-      status.textContent = "Creating room...";
-
-      if (!window.createPongRoom) {
-        status.textContent = "Firebase multiplayer is not loaded.";
-        return;
-      }
-
-      const code = await window.createPongRoom();
-      codeInput.value = code;
-      status.textContent = `Room created: ${code}`;
-    } catch (error) {
-      console.error(error);
-      status.textContent = error.message || "Could not create room.";
-    }
-  });
-
-  joinBtn.addEventListener("click", async () => {
-    try {
-      const code = codeInput.value.trim().toUpperCase();
-
-      if (!code) {
-        status.textContent = "Enter a room code.";
-        return;
-      }
-
-      if (!window.joinPongRoom) {
-        status.textContent = "Firebase multiplayer is not loaded.";
-        return;
-      }
-
-      await window.joinPongRoom(code);
-      status.textContent = `Joined room: ${code}`;
-    } catch (error) {
-      console.error(error);
-      status.textContent = error.message || "Could not join room.";
-    }
-  });
-}
-
-document.addEventListener("DOMContentLoaded", setupPongRoomButtons);
