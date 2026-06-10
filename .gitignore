@@ -1,3 +1,4 @@
 .env
 random.env
 js/config.js
+node_modules
