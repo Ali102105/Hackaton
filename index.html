@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Neon Arcade — 6 classic browser games with a stunning 2026 UI. Snake, Tetris, Breakout, Pong, Flappy, Asteroids."
+      content="Neon Arcade — 7 classic browser games with a stunning 2026 UI. Snake, Tetris, Breakout, Pong, Flappy, Asteroids."
     />
     <title>ARCADE — Play Classic Games</title>
 
@@ -154,7 +154,7 @@
         <p class="hero-eyebrow">Browser · No install · 2026</p>
         <h1 class="hero-title">ARCADE</h1>
         <p class="hero-sub">
-          Six iconic games, re-built for the modern web. Zero installs. Pure
+          Seven iconic games, re-built for the modern web. Zero installs. Pure
           reflexes.
         </p>
 
@@ -193,7 +193,7 @@
       <button class="filter-btn" data-filter="puzzle">Puzzle</button>
       <button class="filter-btn" data-filter="shooter">Shooter</button>
       <span class="filter-count" id="filter-count" aria-live="polite"
-        >6 games</span
+        >7 games</span
       >
     </nav>
 
@@ -348,6 +348,22 @@
           </div>
         </div>
 
+        <div id="pong-multiplayer" style="display: none">
+          <div class="pong-room-controls">
+            <button id="create-pong-room">Create Room</button>
+
+            <input
+              id="pong-room-code"
+              type="text"
+              placeholder="Room code"
+              maxlength="5"
+            />
+
+            <button id="join-pong-room">Join Room</button>
+          </div>
+
+          <div id="room-status"></div>
+        </div>
 
         <div id="game-over-leaderboard" aria-label="Game over leaderboard">
           <div class="game-over-lb-title">Leaderboard</div>

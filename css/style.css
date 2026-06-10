@@ -2578,3 +2578,147 @@ img {
     padding: 9px 8px;
   }
 }
+
+
+/* ============================================================
+   PONG MULTIPLAYER + MODAL LEADERBOARD FIX
+   ============================================================ */
+
+#pong-multiplayer {
+  width: min(94vw, 520px);
+  margin: 14px auto 0;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(8, 8, 20, 0.92);
+  border: 1px solid rgba(0, 245, 255, 0.28);
+  box-shadow: 0 0 22px rgba(0, 245, 255, 0.08);
+}
+
+.pong-room-controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#create-pong-room,
+#join-pong-room {
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--accent-1);
+  color: #000;
+  transition: transform 0.15s, filter 0.15s, box-shadow 0.15s;
+}
+
+#create-pong-room:hover,
+#join-pong-room:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.15);
+  box-shadow: 0 0 18px var(--glow-1);
+}
+
+#pong-room-code {
+  flex: 1;
+  min-width: 130px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  outline: none;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+}
+
+#pong-room-code:focus {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 16px var(--glow-2);
+}
+
+#room-status {
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#room-status[data-type="success"] {
+  color: #00ff88;
+}
+
+#room-status[data-type="error"] {
+  color: #ff4d6d;
+}
+
+#game-over-leaderboard {
+  display: none;
+  width: min(94vw, 520px);
+  margin: 16px auto 0;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(8, 8, 20, 0.92);
+  border: 1px solid rgba(124, 58, 237, 0.35);
+}
+
+#game-over-leaderboard.show {
+  display: block;
+}
+
+.game-over-lb-title {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  margin-bottom: 10px;
+}
+
+.game-over-lb-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 78px;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+}
+
+.game-over-lb-row.first {
+  color: #ffd000;
+  text-shadow: 0 0 10px rgba(255, 208, 0, 0.7);
+}
+
+.game-over-lb-row.me {
+  background: rgba(0, 245, 255, 0.06);
+  border-radius: 10px;
+  padding-inline: 8px;
+}
+
+.game-over-lb-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .pong-room-controls {
+    flex-direction: column;
+  }
+
+  #create-pong-room,
+  #join-pong-room,
+  #pong-room-code {
+    width: 100%;
+  }
+
+  .game-over-lb-row {
+    grid-template-columns: 54px 1fr 58px;
+    font-size: 11px;
+  }
+}

@@ -28,6 +28,10 @@ const STATE = {
   },
   currentGame: null,
   currentDifficulty: "normal",
+  pongRoomCode: null,
+  pongPlayer: null,
+  pongOnline: false,
+  pongRoomUnsubscribe: null,
   coins: Number(localStorage.getItem("arcade-coins") || 0),
   upgrades: JSON.parse(localStorage.getItem("arcade-upgrades") || "{}"),
   gameRunning: false,
@@ -692,6 +696,12 @@ function openGame(id) {
   if (!game) return;
 
   STATE.currentGame = id;
+
+  const pongUI = document.getElementById("pong-multiplayer");
+  if (pongUI) {
+    pongUI.style.display = id === "pong" ? "block" : "none";
+  }
+
   STATE.gameRunning = false;
   STATE.totalPlays++;
   document.getElementById("total-plays").textContent = STATE.totalPlays;
@@ -898,7 +908,13 @@ function startGame() {
   if (id === "snake") startSnake();
   else if (id === "tetris") startTetris();
   else if (id === "breakout") startBreakout();
-  else if (id === "pong") startPong();
+  else if (id === "pong") {
+    if (STATE.pongOnline && STATE.pongRoomCode && STATE.pongPlayer) {
+      startOnlinePong();
+    } else {
+      startPong();
+    }
+  }
   else if (id === "flappy") startFlappy();
   else if (id === "asteroids") startAsteroids();
   else if (id === "fruit") startFruitSlash();
@@ -2747,6 +2763,262 @@ function startFruitSlash() {
   STATE.rafId = requestAnimationFrame(loop);
 }
 
+
+/* ============================================================
+   PONG ONLINE MULTIPLAYER UI + GAME
+   ============================================================ */
+
+function setRoomStatus(message, type = "info") {
+  const el = document.getElementById("room-status");
+  if (!el) return;
+  el.textContent = message;
+  el.dataset.type = type;
+}
+
+function resetPongRoomState() {
+  if (typeof STATE.pongRoomUnsubscribe === "function") {
+    STATE.pongRoomUnsubscribe();
+  }
+  STATE.pongRoomCode = null;
+  STATE.pongPlayer = null;
+  STATE.pongOnline = false;
+  STATE.pongRoomUnsubscribe = null;
+}
+
+function setupPongMultiplayerUI() {
+  const createBtn = document.getElementById("create-pong-room");
+  const joinBtn = document.getElementById("join-pong-room");
+  const input = document.getElementById("pong-room-code");
+
+  if (!createBtn || !joinBtn || !input) return;
+
+  createBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+
+    try {
+      if (!window.createPongRoom) {
+        setRoomStatus("Realtime Database functions are not loaded.", "error");
+        return;
+      }
+
+      const roomCode = await window.createPongRoom();
+      STATE.pongRoomCode = roomCode;
+      STATE.pongPlayer = "p1";
+      STATE.pongOnline = true;
+      input.value = roomCode;
+      setRoomStatus(`Room ${roomCode} created. Send this code to player 2.`, "success");
+    } catch (error) {
+      console.error(error);
+      setRoomStatus(error.message || "Could not create room.", "error");
+    }
+  });
+
+  joinBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+
+    const code = input.value.trim().toUpperCase();
+    if (!code) {
+      setRoomStatus("Fill in a room code first.", "error");
+      return;
+    }
+
+    try {
+      if (!window.joinPongRoom) {
+        setRoomStatus("Realtime Database functions are not loaded.", "error");
+        return;
+      }
+
+      const roomCode = await window.joinPongRoom(code);
+      STATE.pongRoomCode = roomCode;
+      STATE.pongPlayer = "p2";
+      STATE.pongOnline = true;
+      input.value = roomCode;
+      setRoomStatus(`Joined room ${roomCode}. Start Pong when player 1 is ready.`, "success");
+    } catch (error) {
+      console.error(error);
+      setRoomStatus(error.message || "Could not join room.", "error");
+    }
+  });
+}
+
+function startOnlinePong() {
+  const canvas = document.getElementById("game-canvas");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+
+  const PW = 10;
+  const PH = 65;
+  const BALL_R = 7;
+  const WIN = 7;
+  const roomCode = STATE.pongRoomCode;
+  const player = STATE.pongPlayer;
+  const isHost = player === "p1";
+  const keys = {};
+
+  let room = null;
+  let localPaddle = H / 2 - PH / 2;
+  let lastWrite = 0;
+  let lastBallWrite = 0;
+  let lastTime = 0;
+
+  function onKey(e) {
+    keys[e.key] = e.type === "keydown";
+    if (["ArrowUp", "ArrowDown", "w", "s"].includes(e.key)) e.preventDefault();
+  }
+
+  document.addEventListener("keydown", onKey);
+  document.addEventListener("keyup", onKey);
+  GAME_KEY_CLEANUP.push(() => {
+    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("keyup", onKey);
+  });
+
+  if (typeof STATE.pongRoomUnsubscribe === "function") {
+    STATE.pongRoomUnsubscribe();
+  }
+
+  if (window.listenPongRoom) {
+    STATE.pongRoomUnsubscribe = window.listenPongRoom(roomCode, (data) => {
+      room = data;
+    });
+    GAME_KEY_CLEANUP.push(() => {
+      if (typeof STATE.pongRoomUnsubscribe === "function") STATE.pongRoomUnsubscribe();
+      STATE.pongRoomUnsubscribe = null;
+    });
+  }
+
+  function draw() {
+    const paddles = room?.paddles || { p1: H / 2 - PH / 2, p2: H / 2 - PH / 2 };
+    const ball = room?.ball || { x: W / 2, y: H / 2, vx: 4, vy: 3 };
+    const score = room?.score || { p1: 0, p2: 0 };
+
+    ctx.fillStyle = "#000D0F";
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.setLineDash([8, 8]);
+    ctx.strokeStyle = "rgba(0,245,255,0.15)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(W / 2, 0);
+    ctx.lineTo(W / 2, H);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const drawPaddle = (x, y, color) => {
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.roundRect(x, y, PW, PH, 4);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    };
+
+    drawPaddle(15, paddles.p1 || 0, player === "p1" ? "#00F5FF" : "#64748B");
+    drawPaddle(W - 15 - PW, paddles.p2 || 0, player === "p2" ? "#FF006E" : "#64748B");
+
+    ctx.shadowColor = "#FFFFFF";
+    ctx.shadowBlur = 16;
+    ctx.fillStyle = "#FFFFFF";
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.font = `700 36px 'Orbitron', monospace`;
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(0,245,255,0.7)";
+    ctx.fillText(score.p1 || 0, W / 2 - 60, 45);
+    ctx.fillStyle = "rgba(255,0,110,0.7)";
+    ctx.fillText(score.p2 || 0, W / 2 + 60, 45);
+
+    ctx.font = `500 10px 'Orbitron', monospace`;
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.fillText(player === "p1" ? "YOU" : "PLAYER 1", W / 4, H - 10);
+    ctx.fillText(player === "p2" ? "YOU" : "PLAYER 2", (3 * W) / 4, H - 10);
+  }
+
+  async function hostUpdate(dt, ts) {
+    if (!isHost || !room || !window.updatePongBall) return;
+
+    const paddles = room.paddles || { p1: H / 2 - PH / 2, p2: H / 2 - PH / 2 };
+    const score = room.score || { p1: 0, p2: 0 };
+    let ball = room.ball || { x: W / 2, y: H / 2, vx: 4, vy: 3 };
+
+    ball = { ...ball };
+    ball.x += ball.vx * dt;
+    ball.y += ball.vy * dt;
+
+    if (ball.y - BALL_R < 0) {
+      ball.y = BALL_R;
+      ball.vy = Math.abs(ball.vy);
+    }
+
+    if (ball.y + BALL_R > H) {
+      ball.y = H - BALL_R;
+      ball.vy = -Math.abs(ball.vy);
+    }
+
+    if (ball.x - BALL_R < 25 + PW && ball.x - BALL_R > 15 && ball.y > paddles.p1 && ball.y < paddles.p1 + PH) {
+      ball.vx = Math.abs(ball.vx) * 1.03;
+      ball.vy = ((ball.y - (paddles.p1 + PH / 2)) / (PH / 2)) * 5;
+      ball.x = 25 + PW;
+    }
+
+    if (ball.x + BALL_R > W - 25 - PW && ball.x + BALL_R < W - 15 && ball.y > paddles.p2 && ball.y < paddles.p2 + PH) {
+      ball.vx = -Math.abs(ball.vx) * 1.03;
+      ball.vy = ((ball.y - (paddles.p2 + PH / 2)) / (PH / 2)) * 5;
+      ball.x = W - 25 - PW;
+    }
+
+    if (ball.x < -30) {
+      score.p2 = (score.p2 || 0) + 1;
+      ball = { x: W / 2, y: H / 2, vx: -4, vy: 3 };
+    }
+
+    if (ball.x > W + 30) {
+      score.p1 = (score.p1 || 0) + 1;
+      ball = { x: W / 2, y: H / 2, vx: 4, vy: -3 };
+    }
+
+    if ((score.p1 || 0) >= WIN || (score.p2 || 0) >= WIN) {
+      const myScore = player === "p1" ? score.p1 : score.p2;
+      onGameOver(myScore || 0, 1);
+      return;
+    }
+
+    if (ts - lastBallWrite > 55) {
+      lastBallWrite = ts;
+      await window.updatePongBall(roomCode, ball, score);
+    }
+  }
+
+  async function tick(ts) {
+    if (!STATE.gameRunning) return;
+    if (!lastTime) lastTime = ts;
+    const dt = Math.min((ts - lastTime) / 16.67, 2);
+    lastTime = ts;
+
+    if (keys["w"] || keys["ArrowUp"]) localPaddle = Math.max(0, localPaddle - 7 * dt);
+    if (keys["s"] || keys["ArrowDown"]) localPaddle = Math.min(H - PH, localPaddle + 7 * dt);
+
+    if (window.updatePongPaddle && ts - lastWrite > 45) {
+      lastWrite = ts;
+      await window.updatePongPaddle(roomCode, player, localPaddle);
+    }
+
+    await hostUpdate(dt, ts);
+    draw();
+    STATE.rafId = requestAnimationFrame(tick);
+  }
+
+  setRoomStatus(`Online Pong started as ${player.toUpperCase()} in room ${roomCode}.`, "success");
+  setHUD(0, STATE.bestScores.pong, 1);
+  draw();
+  STATE.rafId = requestAnimationFrame(tick);
+}
+
 const LEADERBOARD_GAMES = [
   "snake",
   "tetris",
@@ -2823,6 +3095,7 @@ async function loadLeaderboard(gameId) {
 
 document.addEventListener("DOMContentLoaded", () => {
   buildLeaderboardTabs();
+  setupPongMultiplayerUI();
 });
 
 async function showGameOverLeaderboard(gameId) {
