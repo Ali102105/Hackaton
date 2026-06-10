@@ -177,3 +177,54 @@ window.deletePongRoom = async function (roomCode) {
   if (!roomCode) return;
   await remove(ref(rtdb, "pongRooms/" + roomCode.trim().toUpperCase()));
 };
+
+function setupPongRoomButtons() {
+  const createBtn = document.getElementById("create-pong-room");
+  const joinBtn = document.getElementById("join-pong-room");
+  const codeInput = document.getElementById("pong-room-code");
+  const status = document.getElementById("room-status");
+
+  if (!createBtn || !joinBtn || !codeInput || !status) return;
+
+  createBtn.addEventListener("click", async () => {
+    try {
+      status.textContent = "Creating room...";
+
+      if (!window.createPongRoom) {
+        status.textContent = "Firebase multiplayer is not loaded.";
+        return;
+      }
+
+      const code = await window.createPongRoom();
+      codeInput.value = code;
+      status.textContent = `Room created: ${code}`;
+    } catch (error) {
+      console.error(error);
+      status.textContent = error.message || "Could not create room.";
+    }
+  });
+
+  joinBtn.addEventListener("click", async () => {
+    try {
+      const code = codeInput.value.trim().toUpperCase();
+
+      if (!code) {
+        status.textContent = "Enter a room code.";
+        return;
+      }
+
+      if (!window.joinPongRoom) {
+        status.textContent = "Firebase multiplayer is not loaded.";
+        return;
+      }
+
+      await window.joinPongRoom(code);
+      status.textContent = `Joined room: ${code}`;
+    } catch (error) {
+      console.error(error);
+      status.textContent = error.message || "Could not join room.";
+    }
+  });
+}
+
+document.addEventListener("DOMContentLoaded", setupPongRoomButtons);
