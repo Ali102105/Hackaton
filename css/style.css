@@ -2027,3 +2027,23 @@ canvas,
     width: min(94vw, 420px);
   }
 }
+
+
+.nav-btn-logout {
+  border-color: rgba(255, 0, 110, 0.4);
+  color: #ff006e;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.nav-btn-logout:hover {
+  border-color: #ff006e;
+  color: #ffffff;
+  background: rgba(255, 0, 110, 0.15);
+  box-shadow: 0 0 16px rgba(255, 0, 110, 0.5);
+  transform: scale(1.05);
+}
+
+.nav-btn-logout:active {
+  transform: scale(0.98);
+}
