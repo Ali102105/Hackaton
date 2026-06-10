@@ -825,16 +825,25 @@ function setHUD(score, best, level) {
 
 function onGameOver(score, level = 1) {
   stopGame();
+
   if (score > STATE.bestScores[STATE.currentGame]) {
     STATE.bestScores[STATE.currentGame] = score;
     updateScoreboard();
   }
+
   const earned = awardCoins(score);
+
   setHUD(score, STATE.bestScores[STATE.currentGame], level);
+
+  if (window.saveLeaderboardScore && STATE.currentGame) {
+    window.saveLeaderboardScore(STATE.currentGame, score);
+  }
+
   showStartScreen(
     "GAME OVER",
     `Score: ${score} · Level: ${level} · +${earned} coins`,
   );
+
   renderShop();
   updateBestStat();
 }
@@ -2713,3 +2722,76 @@ function startFruitSlash() {
   STATE.rafId = requestAnimationFrame(loop);
 }
 
+const LEADERBOARD_GAMES = [
+  "snake",
+  "tetris",
+  "breakout",
+  "pong",
+  "flappy",
+  "asteroids",
+  "fruit"
+];
+
+function buildLeaderboardTabs() {
+  const tabs = document.getElementById("leaderboard-tabs");
+  if (!tabs) return;
+
+  tabs.innerHTML = LEADERBOARD_GAMES.map((gameId, index) => {
+    const game = GAMES.find((g) => g.id === gameId);
+
+    return `
+      <button 
+        class="leaderboard-tab ${index === 0 ? "active" : ""}" 
+        data-game="${gameId}"
+      >
+        ${game ? game.title : gameId}
+      </button>
+    `;
+  }).join("");
+
+  tabs.addEventListener("click", (e) => {
+    const btn = e.target.closest(".leaderboard-tab");
+    if (!btn) return;
+
+    document
+      .querySelectorAll(".leaderboard-tab")
+      .forEach((b) => b.classList.remove("active"));
+
+    btn.classList.add("active");
+
+    loadLeaderboard(btn.dataset.game);
+  });
+
+  loadLeaderboard("snake");
+}
+
+async function loadLeaderboard(gameId) {
+  const list = document.getElementById("leaderboard-list");
+  if (!list) return;
+
+  list.innerHTML = `<div class="leaderboard-empty">Loading...</div>`;
+
+  if (!window.getLeaderboard) {
+    list.innerHTML = `<div class="leaderboard-empty">Firebase leaderboard is not loaded.</div>`;
+    return;
+  }
+
+  const scores = await window.getLeaderboard(gameId);
+
+  if (!scores.length) {
+    list.innerHTML = `<div class="leaderboard-empty">No scores yet.</div>`;
+    return;
+  }
+
+  list.innerHTML = scores.map((row, index) => `
+    <div class="leaderboard-row">
+      <span class="leaderboard-rank">#${index + 1}</span>
+      <span class="leaderboard-email">${row.email}</span>
+      <span class="leaderboard-score">${row.score}</span>
+    </div>
+  `).join("");
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  buildLeaderboardTabs();
+});
